@@ -25,6 +25,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "85f61ce1-707d-4059-9387-59e416988161"
+      }
+    },
+    "owner": "robot-penguin"
   }
 }
