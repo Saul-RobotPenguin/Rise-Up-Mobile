@@ -12,6 +12,7 @@ import Header from './component/Header';
 import HomeScreen from "./views/HomeScreen";
 import ShelterScreen from "./views/ShelterScreen";
 import FeedbackScreen from "./views/FeedbackScreen";
+import HealthScreen from './views/HealthScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -39,6 +40,11 @@ export default function App() {
           name="Shelter"
           component={ShelterScreen}
           options={{ title: "Shelters Near You" }}
+        />
+        <Stack.Screen
+          name="Health"
+          component={HealthScreen}
+          options={{ title: "Health Centers Near You" }}
         />
         <Stack.Screen
           name="Feedback"
