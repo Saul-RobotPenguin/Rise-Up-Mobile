@@ -1,18 +1,16 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-
+import { StatusBar } from "expo-status-bar";
+import { StyleSheet, Text, View } from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 //Navbar
-import Header from './component/Header';
-
+import Header from "./component/Header";
 
 //Views
 import HomeScreen from "./views/HomeScreen";
 import ShelterScreen from "./views/ShelterScreen";
 import FeedbackScreen from "./views/FeedbackScreen";
-import HealthScreen from './views/HealthScreen';
+import HealthScreen from "./views/HealthScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -55,7 +53,3 @@ export default function App() {
     </NavigationContainer>
   );
 }
-
-// I LOVE YOU RAMIZAH
-
-

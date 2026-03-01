@@ -6,7 +6,7 @@ export default function HealthScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Welcome to the Health Screen</Text>
-      <Map HealthLocations={HealthLocations} />
+      <Map locations={HealthLocations} />
     </View>
   );
 }

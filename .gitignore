@@ -7,7 +7,6 @@ node_modules/
 .expo/
 dist/
 web-build/
-data/
 
 # Native
 *.orig.*
@@ -31,7 +30,12 @@ yarn-error.*
 
 # local env files
 .env*.local
-
+.env 
 # typescript
 *.tsbuildinfo
 
+# Stuff
+metro.config.js
+docs
+scripts
+data

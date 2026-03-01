@@ -1,6 +1,10 @@
 import React from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity } from "react-native";
 import Footer from "../component/Footer";
+import HeartIcon from "../assets/Heart.svg";
+import FoodIcon from "../assets/Food.svg";
+import WifiIcon from "../assets/Wifi.svg";
+import ShelterIcon from "../assets/Home.svg";
 
 const image = {
   uri: "https://images.unsplash.com/photo-1532960401447-7dd05bef20b0?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8bmV3JTIweW9yayUyMGNpdHl8ZW58MHx8MHx8fDA%3D",
@@ -17,29 +21,29 @@ export default function HomeScreen({ navigation }) {
           style={styles.button}
           onPress={() => navigation.navigate("Shelter")}
         >
-          <Image source={image} style={styles.buttonImage} />
-          <Text style={styles.buttonText}>Shelter</Text>
+          <ShelterIcon width={50} height={50} style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Shelters</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.button}
           onPress={() => navigation.navigate("Health")}
         >
-          <Image source={image} style={styles.buttonImage} />
+          <HeartIcon width={50} height={50} style={styles.buttonIcon} />
           <Text style={styles.buttonText}>Healthcare</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.button}
           onPress={() => navigation.navigate("Shelter")}
         >
-          <Image source={image} style={styles.buttonImage} />
+          <FoodIcon width={50} height={50} style={styles.buttonIcon} />
           <Text style={styles.buttonText}>FoodBanks</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate("Feedback")}
+          onPress={() => navigation.navigate("Kiosks")}
         >
-          <Image source={image} style={styles.buttonImage} />
-          <Text style={styles.buttonText}>Feedback</Text>
+          <WifiIcon width={50} height={50} style={styles.buttonIcon} />
+          <Text style={styles.buttonText}>Kiosks</Text>
         </TouchableOpacity>
       </View>
       <Footer />
