@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import React, { useEffect, useMemo, useState } from "react";
+import { View, Text, StyleSheet, Platform } from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import * as Location from "expo-location";
 
 const DEFAULT_REGION = {
   latitude: 40.7655863,
@@ -25,11 +27,46 @@ const buildDescription = (location) => {
 };
 
 export default function Map({ locations = [] }) {
-  const markerLocations = locations.filter(hasCoordinates);
+  const [userCoordinate, setUserCoordinate] = useState(null);
 
-  if (markerLocations.length === 0) {
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          return;
+        }
+        const { coords } = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (isMounted) {
+          setUserCoordinate({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          });
+        }
+      } catch (error) {
+        console.warn("Unable to fetch user location", error);
+      }
+    };
+
+    fetchLocation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const markerLocations = useMemo(
+    () => locations.filter(hasCoordinates),
+    [locations]
+  );
+
+  if (markerLocations.length === 0 && !userCoordinate) {
     return (
-      <View style={styles.container}>
+      <View style={styles.emptyContainer}>
         <Text style={styles.emptyText}>
           Locations are available, but none include map coordinates yet.
         </Text>
@@ -37,48 +74,67 @@ export default function Map({ locations = [] }) {
     );
   }
 
-  const initialLocation = {
-    latitude: markerLocations[0].lat,
-    longitude: markerLocations[0].lon,
-  };
+  const fallbackRegion = markerLocations.length
+    ? {
+        ...DEFAULT_REGION,
+        latitude: markerLocations[0].lat,
+        longitude: markerLocations[0].lon,
+      }
+    : DEFAULT_REGION;
+
+  const initialRegion = userCoordinate
+    ? { ...DEFAULT_REGION, ...userCoordinate }
+    : fallbackRegion;
 
   return (
-    <MapView
-      style={styles.map}
-      initialRegion={{ ...DEFAULT_REGION, ...initialLocation }}
-    >
-      {markerLocations.map((location) => (
-        <Marker
-          key={location.id}
-          coordinate={{
-            latitude: location.lat,
-            longitude: location.lon,
-          }}
-          title={location.name}
-          description={buildDescription(location)}
-        />
-      ))}
-    </MapView>
+    <View style={styles.wrapper}>
+      <MapView
+        style={StyleSheet.absoluteFillObject}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+        initialRegion={initialRegion}
+        showsUserLocation
+        followsUserLocation={false}
+      >
+        {markerLocations.map((location) => {
+          const id =
+            location.id ??
+            `${location.lat.toFixed(3)}-${location.lon.toFixed(3)}`;
+
+          return (
+            <Marker
+              key={id}
+              coordinate={{
+                latitude: location.lat,
+                longitude: location.lon,
+              }}
+              title={location.name}
+              description={buildDescription(location)}
+            />
+          );
+        })}
+      </MapView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  wrapper: {
+    minHeight: 320,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  emptyContainer: {
+    minHeight: 200,
+    borderRadius: 12,
+    backgroundColor: "#F5FCFF",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5FCFF",
+    paddingHorizontal: 24,
   },
   emptyText: {
     fontSize: 16,
     fontWeight: "600",
     color: "#343434",
-  },
-  map: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    textAlign: "center",
   },
 });

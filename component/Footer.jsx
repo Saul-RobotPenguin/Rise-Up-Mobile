@@ -10,13 +10,14 @@ export default function Footer() {
 
 const styles = StyleSheet.create({
   footer: {
-    position: "absolute",
-    bottom: 0,
     width: "100%",
     backgroundColor: "#DBD8B3",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 20,
+    alignSelf: "stretch",
+    marginTop: 32,
+    borderRadius: 12,
   },
   footerText: {
     fontSize: 16,

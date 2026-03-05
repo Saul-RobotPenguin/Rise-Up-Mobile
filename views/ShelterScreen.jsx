@@ -1,39 +1,159 @@
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+﻿import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Linking,
+  Platform,
+} from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import * as Location from "expo-location";
 import Map from "../component/Map";
 import dropInData from "../data/dropInCenters.json";
 
 const centers = Array.isArray(dropInData?.centers) ? dropInData.centers : [];
 
-const groupByBorough = (items) =>
-  items.reduce((acc, item) => {
-    const key = item.borough || "Other";
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(item);
-    return acc;
-  }, {});
+const hasCoordinates = (location) =>
+  Number.isFinite(location?.lat) && Number.isFinite(location?.lon);
 
-const boroughGroups = groupByBorough(centers);
-const boroughOrder = ["Bronx", "Brooklyn", "Manhattan", "Queens", "Staten Island"];
-const extraBoroughs = Object.keys(boroughGroups).filter(
-  (key) => !boroughOrder.includes(key)
-);
-const orderedBoroughs = [...boroughOrder, ...extraBoroughs];
+const toRadians = (degrees) => (degrees * Math.PI) / 180;
+const distanceInKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
 
 export default function ShelterScreen() {
   const hasLocations = centers.length > 0;
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("pending");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (!isMounted) {
+          return;
+        }
+        if (status !== "granted") {
+          setLocationStatus("denied");
+          return;
+        }
+        const { coords } = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (!isMounted) {
+          return;
+        }
+        setUserLocation({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        });
+        setLocationStatus("granted");
+      } catch (error) {
+        console.warn("Unable to fetch shelter screen location", error);
+        if (isMounted) {
+          setLocationStatus("error");
+        }
+      }
+    };
+
+    fetchLocation();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const centersWithDistance = useMemo(
+    () =>
+      centers.map((center) => {
+        if (
+          userLocation &&
+          hasCoordinates(center) &&
+          Number.isFinite(userLocation.latitude) &&
+          Number.isFinite(userLocation.longitude)
+        ) {
+          return {
+            ...center,
+            distanceKm: distanceInKm(
+              userLocation.latitude,
+              userLocation.longitude,
+              center.lat,
+              center.lon,
+            ),
+          };
+        }
+        return { ...center, distanceKm: null };
+      }),
+    [centers, userLocation],
+  );
+
+  const sortedCenters = useMemo(() => {
+    if (!userLocation) {
+      return centersWithDistance;
+    }
+    return [...centersWithDistance].sort((a, b) => {
+      if (a.distanceKm == null) return 1;
+      if (b.distanceKm == null) return -1;
+      return a.distanceKm - b.distanceKm;
+    });
+  }, [centersWithDistance, userLocation]);
+
+  const getDirectionsUrl = (location) => {
+    if (!hasCoordinates(location)) {
+      return null;
+    }
+    const encodedLabel = encodeURIComponent(location?.name ?? "Shelter");
+    if (Platform.OS === "ios") {
+      return `http://maps.apple.com/?daddr=${location.lat},${location.lon}&q=${encodedLabel}`;
+    }
+    if (Platform.OS === "android") {
+      // https scheme opens Google Maps app if installed, otherwise browser.
+      return `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lon}&destination_place_id=&travelmode=walking`;
+    }
+    // Web and fallback
+    return `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`;
+  };
+
+  const handleDirectionsPress = async (location) => {
+    const url = getDirectionsUrl(location);
+    if (!url) {
+      return;
+    }
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      }
+    } catch (error) {
+      console.warn("Unable to open directions link", error);
+    }
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>NYC Drop-In Centers</Text>
       <Text style={styles.subtitle}>
-        Information sourced directly from NYC311. Drop-in centers operate 24/7, including holidays.
+        Information sourced directly from NYC311. Drop-in centers operate 24/7,
+        including holidays.
       </Text>
       {!hasLocations ? (
         <View style={styles.feedback}>
           <Text style={styles.feedbackText}>
-            Drop-in center data is unavailable right now. Please run npm run sync:dropins to refresh the cache.
+            Drop-in center data is unavailable right now. Please run npm run
+            sync:dropins to refresh the cache.
           </Text>
         </View>
       ) : (
@@ -41,29 +161,66 @@ export default function ShelterScreen() {
           <View style={styles.mapWrapper}>
             <Map locations={centers} />
           </View>
-          <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-            {orderedBoroughs.map((borough) => {
-              const boroughCenters = boroughGroups[borough];
-              if (!boroughCenters || boroughCenters.length === 0) {
-                return null;
-              }
+          <View style={styles.sortingHintWrapper}>
+            {userLocation ? (
+              <Text style={styles.sortingHint}>
+                Showing closest shelters first (updated from your location).
+              </Text>
+            ) : locationStatus === "denied" ? (
+              <Text style={styles.sortingHint}>
+                Location access denied - showing unsorted list.
+              </Text>
+            ) : (
+              <Text style={styles.sortingHint}>
+                Fetching your location to sort shelters by distance...
+              </Text>
+            )}
+          </View>
+          <ScrollView
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+          >
+            {sortedCenters.map((location) => {
+              const directionsUrl = getDirectionsUrl(location);
+              const disabled = !directionsUrl;
               return (
-                <View key={borough} style={styles.boroughSection}>
-                  <Text style={styles.boroughHeading}>{borough}</Text>
-                  {boroughCenters.map((location) => (
-                    <View key={location.id} style={styles.card}>
-                      <Text style={styles.cardTitle}>{location.name}</Text>
-                      {location.address ? (
-                        <Text style={styles.cardDetail}>{location.address}</Text>
-                      ) : null}
-                      {location.transit ? (
-                        <Text style={styles.cardDetail}>{location.transit}</Text>
-                      ) : null}
-                      {location.hours ? (
-                        <Text style={styles.cardDetail}>{location.hours}</Text>
-                      ) : null}
-                    </View>
-                  ))}
+                <View key={location.id} style={styles.card}>
+                  <Text style={styles.cardTitle}>{location.name}</Text>
+                  {location.borough ? (
+                    <Text style={styles.boroughLabel}>{location.borough}</Text>
+                  ) : null}
+                  {location.address ? (
+                    <Text style={styles.cardDetail}>{location.address}</Text>
+                  ) : null}
+                  {location.transit ? (
+                    <Text style={styles.cardDetail}>{location.transit}</Text>
+                  ) : null}
+                  {location.hours ? (
+                    <Text style={styles.cardDetail}>{location.hours}</Text>
+                  ) : null}
+                  {location.distanceKm != null ? (
+                    <Text style={styles.cardDistance}>
+                      {location.distanceKm.toFixed(1)} km away
+                    </Text>
+                  ) : null}
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    disabled={disabled}
+                    style={[
+                      styles.directionsButton,
+                      disabled && styles.directionsButtonDisabled,
+                    ]}
+                    onPress={() => handleDirectionsPress(location)}
+                  >
+                    <Text
+                      style={[
+                        styles.directionsButtonText,
+                        disabled && styles.directionsButtonTextDisabled,
+                      ]}
+                    >
+                      Get Directions
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               );
             })}
@@ -104,7 +261,7 @@ const styles = StyleSheet.create({
   },
   mapWrapper: {
     flex: 1,
-    minHeight: 260,
+    minHeight: 50,
     borderRadius: 12,
     overflow: "hidden",
   },
@@ -115,13 +272,19 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingBottom: 24,
   },
-  boroughSection: {
-    gap: 10,
+  sortingHintWrapper: {
+    paddingHorizontal: 8,
   },
-  boroughHeading: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#222",
+  sortingHint: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+  },
+  boroughLabel: {
+    fontSize: 12,
+    color: "#6b6b6b",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   card: {
     padding: 12,
@@ -142,5 +305,29 @@ const styles = StyleSheet.create({
   cardDetail: {
     fontSize: 14,
     color: "#555",
+  },
+  cardDistance: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#1f7a8c",
+  },
+  directionsButton: {
+    marginTop: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#d7263d",
+    alignItems: "center",
+  },
+  directionsButtonDisabled: {
+    backgroundColor: "#c7c7c7",
+  },
+  directionsButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    letterSpacing: 0.5,
+  },
+  directionsButtonTextDisabled: {
+    color: "#f0f0f0",
   },
 });

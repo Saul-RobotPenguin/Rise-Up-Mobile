@@ -1,77 +1,182 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+const DEFAULT_COORDINATE = { lat: 40.7655863, lon: -73.9544244 };
+const DEFAULT_ZOOM_LEVEL = 12;
+const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_ATTRIBUTION = "(c) OpenStreetMap contributors";
 
 const hasCoordinates = (location) =>
   Number.isFinite(location?.lat) && Number.isFinite(location?.lon);
 
-const formatCoords = (location) =>
-  hasCoordinates(location)
-    ? `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`
-    : "Coordinates unavailable";
+const buildPopupHtml = (location) => {
+  const lines = [];
+  if (location.name) lines.push(`<strong>${location.name}</strong>`);
+  if (location.address) lines.push(location.address);
+  if (location.transit) lines.push(location.transit);
+  if (location.hours) lines.push(`Hours: ${location.hours}`);
+  if (location.phone) lines.push(`Phone: ${location.phone}`);
+  return lines.join("<br />") || "Location";
+};
+
+const MARKER_HTML = `
+  <svg
+    width="30"
+    height="42"
+    viewBox="0 0 30 38"
+    xmlns="http://www.w3.org/2000/svg"
+    style="filter: drop-shadow(0 3px 4px rgba(0,0,0,0.35)); display: block;"
+  >
+    <path
+      d="M15 1C7.268 1 1 7.268 1 15c0 10.628 11.371 26 14 26s14-15.372 14-26C29 7.268 22.732 1 15 1z"
+      fill="#d7263d"
+    />
+    <circle cx="15" cy="15" r="5.2" fill="#fff" />
+  </svg>
+`;
+
+const DEFAULT_MARKER_ICON =
+  typeof window !== "undefined"
+    ? L.divIcon({
+        className: "",
+        html: MARKER_HTML,
+        iconSize: [30, 42],
+        iconAnchor: [15, 40],
+        popupAnchor: [0, -30],
+      })
+    : null;
 
 export default function Map({ locations = [] }) {
-  if (locations.length === 0) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.heading}>No locations to display.</Text>
-      </View>
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerLayerRef = useRef(null);
+  const [userCenter, setUserCenter] = useState(null);
+  const markerLocations = useMemo(
+    () => locations.filter(hasCoordinates),
+    [locations],
+  );
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) {
+      return;
+    }
+
+    mapRef.current = L.map(containerRef.current, {
+      scrollWheelZoom: false,
+    }).setView(
+      [DEFAULT_COORDINATE.lat, DEFAULT_COORDINATE.lon],
+      DEFAULT_ZOOM_LEVEL,
     );
-  }
+
+    L.tileLayer(TILE_URL, {
+      attribution: TILE_ATTRIBUTION,
+      maxZoom: 19,
+    }).addTo(mapRef.current);
+
+    markerLayerRef.current = L.layerGroup().addTo(mapRef.current);
+
+    return () => {
+      mapRef.current?.remove();
+      mapRef.current = null;
+      markerLayerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !navigator?.geolocation) {
+      return;
+    }
+    let canceled = false;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        if (!canceled) {
+          setUserCenter({ lat: coords.latitude, lon: coords.longitude });
+        }
+      },
+      (error) => {
+        console.warn("Unable to fetch browser location", error);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current || !markerLayerRef.current) return;
+
+    markerLayerRef.current.clearLayers();
+
+    const targetCenter =
+      userCenter ??
+      markerLocations[0] ??
+      DEFAULT_COORDINATE;
+
+    mapRef.current.setView(
+      [targetCenter.lat, targetCenter.lon],
+      DEFAULT_ZOOM_LEVEL,
+    );
+
+    markerLocations.forEach((location) => {
+      L.marker([location.lat, location.lon], {
+        icon: DEFAULT_MARKER_ICON ?? undefined,
+      })
+        .bindPopup(buildPopupHtml(location))
+        .addTo(markerLayerRef.current);
+    });
+  }, [markerLocations, userCenter]);
+
+  const showEmptyOverlay = markerLocations.length === 0 && !userCenter;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Locations</Text>
-      {locations.map((location) => (
-        <View key={location.id} style={styles.item}>
-          <Text style={styles.name}>{location.name}</Text>
-          {location.address ? (
-            <Text style={styles.detail}>{location.address}</Text>
-          ) : null}
-          {location.transit ? (
-            <Text style={styles.detail}>{location.transit}</Text>
-          ) : null}
-          {location.hours ? (
-            <Text style={styles.detail}>{location.hours}</Text>
-          ) : null}
-          {location.phone ? (
-            <Text style={styles.detail}>{location.phone}</Text>
-          ) : null}
-          <Text style={styles.coords}>{formatCoords(location)}</Text>
+    <View style={styles.wrapper}>
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      {showEmptyOverlay ? (
+        <View style={styles.emptyOverlay}>
+          <Text style={styles.emptyTitle}>Map unavailable</Text>
+          <Text style={styles.emptyDetail}>
+            Locations exist, but none provide coordinates to plot yet.
+          </Text>
         </View>
-      ))}
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     width: "100%",
-    padding: 20,
-    gap: 12,
+    minHeight: 320,
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#d9d9d9",
+    position: "relative",
   },
-  heading: {
+  emptyOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
+    marginBottom: 8,
     color: "#343434",
   },
-  item: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#e1e1e1",
-    borderRadius: 8,
-    backgroundColor: "#fff",
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  detail: {
+  emptyDetail: {
     fontSize: 14,
     color: "#555",
-  },
-  coords: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 4,
+    lineHeight: 20,
+    textAlign: "center",
   },
 });
