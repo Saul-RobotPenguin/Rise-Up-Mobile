@@ -7,7 +7,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "sync:dropins": "node scripts/sync-dropin-centers.js"
+    "sync:dropins": "node scripts/sync-dropin-centers.js",
+    "sync:clinics": "node scripts/sync-community-resources.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

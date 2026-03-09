@@ -7,9 +7,59 @@ const DEFAULT_COORDINATE = { lat: 40.7655863, lon: -73.9544244 };
 const DEFAULT_ZOOM_LEVEL = 12;
 const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const TILE_ATTRIBUTION = "(c) OpenStreetMap contributors";
+const MAX_MARKERS = 10;
 
 const hasCoordinates = (location) =>
   Number.isFinite(location?.lat) && Number.isFinite(location?.lon);
+
+const toRadians = (degrees) => (degrees * Math.PI) / 180;
+const extractLatitude = (coordinate) =>
+  coordinate?.latitude ?? coordinate?.lat ?? null;
+const extractLongitude = (coordinate) =>
+  coordinate?.longitude ?? coordinate?.lon ?? null;
+
+const metersBetween = (origin, destination) => {
+  const originLat = extractLatitude(origin);
+  const originLon = extractLongitude(origin);
+  const destLat = extractLatitude(destination);
+  const destLon = extractLongitude(destination);
+  if (
+    originLat == null ||
+    originLon == null ||
+    destLat == null ||
+    destLon == null
+  ) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const R = 6371000;
+  const dLat = toRadians(destLat - originLat);
+  const dLon = toRadians(destLon - originLon);
+  const lat1 = toRadians(originLat);
+  const lat2 = toRadians(destLat);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLon / 2) *
+      Math.sin(dLon / 2) *
+      Math.cos(lat1) *
+      Math.cos(lat2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const filterClosestLocations = (locations, origin) => {
+  if (!origin) return locations;
+  return locations
+    .map((location) => {
+      const destination = { latitude: location.lat, longitude: location.lon };
+      return {
+        location,
+        distance: metersBetween(origin, destination),
+      };
+    })
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, MAX_MARKERS)
+    .map((entry) => entry.location);
+};
 
 const buildPopupHtml = (location) => {
   const lines = [];
@@ -53,10 +103,13 @@ export default function Map({ locations = [] }) {
   const mapRef = useRef(null);
   const markerLayerRef = useRef(null);
   const [userCenter, setUserCenter] = useState(null);
-  const markerLocations = useMemo(
-    () => locations.filter(hasCoordinates),
-    [locations],
-  );
+  const markerLocations = useMemo(() => {
+    const filtered = locations.filter(hasCoordinates);
+    if (userCenter) {
+      return filterClosestLocations(filtered, userCenter);
+    }
+    return filtered;
+  }, [locations, userCenter]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
