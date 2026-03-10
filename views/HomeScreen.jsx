@@ -1,10 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   Image,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   useWindowDimensions,
 } from "react-native";
@@ -17,192 +16,216 @@ import ShelterIcon from "../assets/Home.svg";
 const image = {
   uri: "https://images.unsplash.com/photo-1532960401447-7dd05bef20b0?q=80&w=1000&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8bmV3JTIweW9yayUyMGNpdHl8ZW58MHx8MHx8fDA%3D",
 };
+
+const NAV_BUTTONS = [
+  { label: "Shelters", subtitle: "Find nearby shelters", icon: ShelterIcon, route: "Shelter" },
+  { label: "Healthcare", subtitle: "Clinics & services", icon: HeartIcon, route: "Health" },
+  { label: "Food Banks", subtitle: "Free food assistance", icon: FoodIcon, route: "Shelter" },
+  { label: "Kiosks", subtitle: "Free WiFi access", icon: WifiIcon, route: "Kiosks" },
+];
+
+function NavCard({ label, subtitle, icon: Icon, route, navigation, iconSize, isWide, borderRight, borderBottom }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Pressable
+      onPress={() => navigation.navigate(route)}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ pressed }) => ({
+        flex: 1,
+        backgroundColor: pressed
+          ? "rgba(255,255,255,0.45)"
+          : hovered
+          ? "rgba(255,255,255,0.25)"
+          : "transparent",
+        borderRightWidth: borderRight ? 1 : 0,
+        borderBottomWidth: borderBottom ? 1 : 0,
+        borderColor: "#C8C4A0",
+        cursor: "pointer",
+      })}
+    >
+      <View
+        className="items-center justify-center"
+        style={{
+          minHeight: isWide ? 280 : undefined,
+          paddingVertical: isWide ? 40 : 24,
+        }}
+      >
+        <Icon width={iconSize} height={iconSize} />
+        <Text
+          className="font-bold"
+          style={{
+            color: "#343434",
+            fontSize: isWide ? 22 : 16,
+            marginTop: isWide ? 20 : 12,
+          }}
+        >
+          {label}
+        </Text>
+        <Text
+          style={{
+            color: "#5C5840",
+            fontSize: isWide ? 15 : 12,
+            marginTop: isWide ? 8 : 4,
+          }}
+        >
+          {subtitle}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function HomeScreen({ navigation }) {
   const { width, height } = useWindowDimensions();
-  const isTablet = width >= 768;
-  const isWideTablet = width >= 1024;
+  const isWide = width >= 600;
   const isSmallPhone = width < 360;
 
   const headerHeight = Math.min(
-    Math.max(height * (isTablet ? 0.28 : 0.34), 220),
-    isTablet ? 380 : 320
+    Math.max(height * (isWide ? 0.4 : 0.34), 240),
+    isWide ? 500 : 320
   );
-  const buttonWidth = isWideTablet
-    ? "30%"
-    : isTablet
-    ? "45%"
-    : isSmallPhone
-    ? "100%"
-    : "47%";
-  const cardMinHeight = isTablet ? 210 : isSmallPhone ? 135 : 170;
-  const buttonPadding = isTablet ? 28 : isSmallPhone ? 16 : 20;
-  const iconSize = isTablet ? 62 : isSmallPhone ? 44 : 52;
-  const buttonTextSize = isTablet ? 20 : isSmallPhone ? 16 : 18;
+  const iconSize = isWide ? 80 : isSmallPhone ? 40 : 50;
 
   return (
     <ScrollView
-      contentContainerStyle={[
-        styles.scrollContainer,
-        { paddingHorizontal: isTablet ? 32 : 16 },
-      ]}
+      contentContainerStyle={{ flexGrow: 1 }}
+      style={{ backgroundColor: "#F5F0E8" }}
     >
+      {/* Hero Banner - full width */}
       <View
-        style={[
-          styles.container,
-          { maxWidth: isWideTablet ? 1000 : isTablet ? 800 : 500 },
-        ]}
+        style={{ height: headerHeight }}
+        className="items-center justify-center overflow-hidden"
       >
-        <View style={[styles.header, { height: headerHeight }]}>
-          <Image source={image} style={styles.headerImage} />
-          <Text style={[styles.headerText, { fontSize: isTablet ? 32 : 24 }]}>
-            Rise Up
+        <Image
+          source={image}
+          className="absolute w-full h-full"
+          style={{ resizeMode: "cover" }}
+        />
+        <View className="absolute top-0 left-0 right-0 bottom-0 bg-black/50" />
+        <View className="items-center justify-center z-10 px-6">
+          <Text
+            className="font-extrabold text-white"
+            style={{
+              fontSize: isWide ? 72 : 48,
+              textShadowColor: "rgba(0,0,0,0.8)",
+              textShadowOffset: { width: 0, height: 4 },
+              textShadowRadius: 12,
+              letterSpacing: 6,
+            }}
+          >
+            RISE UP
+          </Text>
+          <View
+            className="rounded-full mt-4 mb-4"
+            style={{
+              height: 2,
+              width: isWide ? 80 : 50,
+              backgroundColor: "rgba(255,255,255,0.5)",
+            }}
+          />
+          <Text
+            className="text-white font-medium"
+            style={{
+              fontSize: isWide ? 20 : 14,
+              textShadowColor: "rgba(0,0,0,0.5)",
+              textShadowOffset: { width: 0, height: 1 },
+              textShadowRadius: 6,
+              letterSpacing: 2,
+            }}
+          >
+            NYC Resources at Your Fingertips
           </Text>
         </View>
-        <View
-          style={[styles.buttonContainer, { marginTop: isTablet ? 30 : 20 }]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.button,
-              {
-                width: buttonWidth,
-                minHeight: cardMinHeight,
-                paddingVertical: buttonPadding,
-              },
-            ]}
-            onPress={() => navigation.navigate("Shelter")}
-          >
-            <ShelterIcon
-              width={iconSize}
-              height={iconSize}
-              style={styles.buttonIcon}
-            />
-            <Text style={[styles.buttonText, { fontSize: buttonTextSize }]}>
-              Shelters
+      </View>
+
+      {/* Content area - full width */}
+      <View className="pt-6" style={{ alignItems: "center" }}>
+        <View style={{ width: "100%" }}>
+          {/* Section Label - centered */}
+          <View className="mb-5 items-center">
+            <Text
+              className={`font-bold ${isWide ? "text-2xl" : "text-lg"}`}
+              style={{ color: "#343434" }}
+            >
+              What do you need?
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              {
-                width: buttonWidth,
-                minHeight: cardMinHeight,
-                paddingVertical: buttonPadding,
-              },
-            ]}
-            onPress={() => navigation.navigate("Health")}
-          >
-            <HeartIcon
-              width={iconSize}
-              height={iconSize}
-              style={styles.buttonIcon}
-            />
-            <Text style={[styles.buttonText, { fontSize: buttonTextSize }]}>
-              Healthcare
+            <Text
+              className={`mt-1 ${isWide ? "text-base" : "text-sm"}`}
+              style={{ color: "#8A8570" }}
+            >
+              Tap a category to find resources near you
             </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              {
-                width: buttonWidth,
-                minHeight: cardMinHeight,
-                paddingVertical: buttonPadding,
-              },
-            ]}
-            onPress={() => navigation.navigate("Shelter")}
+          </View>
+
+          {/* Navigation Cards - full width */}
+          <View
+            style={{
+              backgroundColor: "#DBD8B3",
+              overflow: "hidden",
+            }}
           >
-            <FoodIcon
-              width={iconSize}
-              height={iconSize}
-              style={styles.buttonIcon}
-            />
-            <Text style={[styles.buttonText, { fontSize: buttonTextSize }]}>
-              FoodBanks
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.button,
-              {
-                width: buttonWidth,
-                minHeight: cardMinHeight,
-                paddingVertical: buttonPadding,
-              },
-            ]}
-            onPress={() => navigation.navigate("Kiosks")}
-          >
-            <WifiIcon
-              width={iconSize}
-              height={iconSize}
-              style={styles.buttonIcon}
-            />
-            <Text style={[styles.buttonText, { fontSize: buttonTextSize }]}>
-              Kiosks
-            </Text>
-          </TouchableOpacity>
+            {isWide ? (
+              <View>
+                <View className="flex-row">
+                  {NAV_BUTTONS.slice(0, 2).map(({ label, subtitle, icon, route }, i) => (
+                    <NavCard
+                      key={label}
+                      label={label}
+                      subtitle={subtitle}
+                      icon={icon}
+                      route={route}
+                      navigation={navigation}
+                      iconSize={iconSize}
+                      isWide={isWide}
+                      borderRight={i === 0}
+                      borderBottom={true}
+                    />
+                  ))}
+                </View>
+                <View className="flex-row">
+                  {NAV_BUTTONS.slice(2, 4).map(({ label, subtitle, icon, route }, i) => (
+                    <NavCard
+                      key={label}
+                      label={label}
+                      subtitle={subtitle}
+                      icon={icon}
+                      route={route}
+                      navigation={navigation}
+                      iconSize={iconSize}
+                      isWide={isWide}
+                      borderRight={i === 0}
+                      borderBottom={false}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <View>
+                {NAV_BUTTONS.map(({ label, subtitle, icon, route }, i) => (
+                  <NavCard
+                    key={label}
+                    label={label}
+                    subtitle={subtitle}
+                    icon={icon}
+                    route={route}
+                    navigation={navigation}
+                    iconSize={iconSize}
+                    isWide={isWide}
+                    borderRight={false}
+                    borderBottom={i < NAV_BUTTONS.length - 1}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+
+          <View className="px-5">
+            <Footer />
+          </View>
         </View>
-        <Footer />
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  scrollContainer: {
-    flexGrow: 1,
-    backgroundColor: "#F5F5F5",
-    alignItems: "center",
-    paddingVertical: 24,
-  },
-  container: {
-    width: "100%",
-  },
-  header: {
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 16,
-    overflow: "hidden",
-    marginBottom: 24,
-  },
-  headerImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-    position: "absolute",
-  },
-  headerText: {
-    fontWeight: "bold",
-    color: "white",
-    zIndex: 1,
-    textShadowColor: "rgba(0,0,0,0.45)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  button: {
-    backgroundColor: "#DBD8B3",
-    borderRadius: 14,
-    marginBottom: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  buttonText: {
-    color: "#343434",
-    fontWeight: "bold",
-  },
-  buttonImage: {
-    width: 50,
-    height: 50,
-    marginBottom: 10,
-  },
-});

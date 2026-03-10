@@ -98,7 +98,7 @@ const DEFAULT_MARKER_ICON =
       })
     : null;
 
-export default function Map({ locations = [] }) {
+export default function Map({ locations = [], onMarkerPress }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerLayerRef = useRef(null);
@@ -174,13 +174,17 @@ export default function Map({ locations = [] }) {
     );
 
     markerLocations.forEach((location) => {
-      L.marker([location.lat, location.lon], {
+      const marker = L.marker([location.lat, location.lon], {
         icon: DEFAULT_MARKER_ICON ?? undefined,
       })
         .bindPopup(buildPopupHtml(location))
         .addTo(markerLayerRef.current);
+
+      if (onMarkerPress) {
+        marker.on("click", () => onMarkerPress(location));
+      }
     });
-  }, [markerLocations, userCenter]);
+  }, [markerLocations, userCenter, onMarkerPress]);
 
   const showEmptyOverlay = markerLocations.length === 0 && !userCenter;
 

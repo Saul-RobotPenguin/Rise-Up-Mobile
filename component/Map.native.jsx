@@ -76,7 +76,7 @@ const buildDescription = (location) => {
   );
 };
 
-export default function Map({ locations = [] }) {
+export default function Map({ locations = [], onMarkerPress }) {
   const [userCoordinate, setUserCoordinate] = useState(null);
 
   useEffect(() => {
@@ -165,6 +165,7 @@ export default function Map({ locations = [] }) {
               }}
               title={location.name}
               description={buildDescription(location)}
+              onPress={() => onMarkerPress?.(location)}
             />
           );
         })}

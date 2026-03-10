@@ -3,11 +3,11 @@
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   Linking,
   Platform,
 } from "react-native";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Location from "expo-location";
 import Map from "../component/Map";
 import dropInData from "../data/dropInCenters.json";
@@ -32,10 +32,41 @@ const distanceInKm = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
+function DirectionsButton({ disabled, onPress }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={[
+        styles.directionsButton,
+        disabled && styles.directionsButtonDisabled,
+        !disabled && hovered && { backgroundColor: "#9E9B75" },
+      ]}
+    >
+      <Text
+        style={[
+          styles.directionsButtonText,
+          disabled && styles.directionsButtonTextDisabled,
+        ]}
+      >
+        Get Directions
+      </Text>
+    </Pressable>
+  );
+}
+
 export default function ShelterScreen() {
   const hasLocations = centers.length > 0;
   const [userLocation, setUserLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState("pending");
+  const [selectedId, setSelectedId] = useState(null);
+  const scrollViewRef = useRef(null);
+  const cardPositions = useRef({});
 
   useEffect(() => {
     let isMounted = true;
@@ -127,6 +158,14 @@ export default function ShelterScreen() {
     return `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`;
   };
 
+  const handleMarkerPress = useCallback((location) => {
+    setSelectedId(location.id);
+    const y = cardPositions.current[location.id];
+    if (y != null && scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y, animated: true });
+    }
+  }, []);
+
   const handleDirectionsPress = async (location) => {
     const url = getDirectionsUrl(location);
     if (!url) {
@@ -159,7 +198,7 @@ export default function ShelterScreen() {
       ) : (
         <>
           <View style={styles.mapWrapper}>
-            <Map locations={centers} />
+            <Map locations={centers} onMarkerPress={handleMarkerPress} />
           </View>
           <View style={styles.sortingHintWrapper}>
             {userLocation ? (
@@ -177,14 +216,25 @@ export default function ShelterScreen() {
             )}
           </View>
           <ScrollView
+            ref={scrollViewRef}
             style={styles.list}
             contentContainerStyle={styles.listContent}
           >
             {sortedCenters.map((location) => {
               const directionsUrl = getDirectionsUrl(location);
               const disabled = !directionsUrl;
+              const isSelected = selectedId === location.id;
               return (
-                <View key={location.id} style={styles.card}>
+                <View
+                  key={location.id}
+                  onLayout={(e) => {
+                    cardPositions.current[location.id] = e.nativeEvent.layout.y;
+                  }}
+                  style={[
+                    styles.card,
+                    isSelected && styles.cardSelected,
+                  ]}
+                >
                   <Text style={styles.cardTitle}>{location.name}</Text>
                   {location.borough ? (
                     <Text style={styles.boroughLabel}>{location.borough}</Text>
@@ -203,24 +253,10 @@ export default function ShelterScreen() {
                       {location.distanceKm.toFixed(1)} km away
                     </Text>
                   ) : null}
-                  <TouchableOpacity
-                    accessibilityRole="button"
+                  <DirectionsButton
                     disabled={disabled}
-                    style={[
-                      styles.directionsButton,
-                      disabled && styles.directionsButtonDisabled,
-                    ]}
                     onPress={() => handleDirectionsPress(location)}
-                  >
-                    <Text
-                      style={[
-                        styles.directionsButtonText,
-                        disabled && styles.directionsButtonTextDisabled,
-                      ]}
-                    >
-                      Get Directions
-                    </Text>
-                  </TouchableOpacity>
+                  />
                 </View>
               );
             })}
@@ -234,7 +270,7 @@ export default function ShelterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F7F7F2",
+    backgroundColor: "#F5F0E8",
     padding: 16,
     gap: 16,
   },
@@ -287,47 +323,53 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   card: {
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: "#FFF",
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: "#DBD8B3",
     shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
     gap: 4,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  cardSelected: {
+    borderColor: "#343434",
+    backgroundColor: "#CCC9A3",
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#111",
+    fontWeight: "700",
+    color: "#343434",
   },
   cardDetail: {
     fontSize: 14,
-    color: "#555",
+    color: "#5C5840",
   },
   cardDistance: {
     marginTop: 6,
     fontSize: 13,
     fontWeight: "600",
-    color: "#1f7a8c",
+    color: "#7A7760",
   },
   directionsButton: {
     marginTop: 10,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: "#d7263d",
+    backgroundColor: "#B5B28A",
     alignItems: "center",
   },
   directionsButtonDisabled: {
     backgroundColor: "#c7c7c7",
   },
   directionsButtonText: {
-    color: "#fff",
-    fontWeight: "600",
+    color: "#343434",
+    fontWeight: "700",
     letterSpacing: 0.5,
   },
   directionsButtonTextDisabled: {
-    color: "#f0f0f0",
+    color: "#999",
   },
 });
